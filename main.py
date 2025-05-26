@@ -27,6 +27,10 @@ async def run_agent(agent, profile, chat_history):
         print(f"{agent.name}: {result.final_output.message}\n")
         chat_history = result.to_input_list()
 
+        # Update profile with any new preferences
+        if hasattr(result.final_output, 'preferences') and result.final_output.preferences:
+            profile.preferences = result.final_output.preferences
+
         if result.final_output.done:
             print(f"✅ {agent.name} completed its task.")
             filename = os.path.join(SAVE_DIR, f"{agent.name.replace(' ', '_').lower()}.md")
@@ -45,8 +49,8 @@ async def main():
     }
 
     print("Available agents:")
-    for key in agents:
-        print(f"- {key}")
+    for key, (agent_obj, description) in agents.items():
+        print(f"- {key}: {agent_obj.name} — {description}")
 
     chosen_key = input("\nWhich agent would you like to use? (architect/memory/cognitive): ").strip().lower()
     if chosen_key not in agents:
@@ -61,7 +65,13 @@ async def main():
     if agent == learning_architect_agent:
         print("🧠 Now continuing with the Memory & Recall Agent...")
         print(agents["memory"][1] + "\n")
-        await run_agent(memory_recall_agent, profile, chat_history)
+        chat_history = await run_agent(memory_recall_agent, profile, chat_history)
+
+        # Check for focus or distraction issues in preferences
+        if profile.preferences and any(word in profile.preferences.lower() for word in ["focus", "distract", "attention", "concentrate"]):
+            print("📌 Insight: You mentioned having difficulty focusing. The system is automatically engaging the Cognitive Coach Agent to support your concentration and mental clarity.")
+            print("🧠 Based on your preferences, launching the Cognitive Coach Agent to assist with focus...")
+            await run_agent(cognitive_coach_agent, profile, chat_history)
 
     # Create index.md
     index_path = os.path.join(SAVE_DIR, "index.md")
