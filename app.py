@@ -30,16 +30,43 @@ if "save_dir" not in st.session_state:
     os.makedirs(st.session_state.save_dir, exist_ok=True)
 
 agents = {
-    "Learning Architect": (learning_architect_agent, "Build a personalized study plan."),
-    "Memory & Recall": (memory_recall_agent, "Create flashcards and review schedules."),
-    "Cognitive Coach": (cognitive_coach_agent, "Improve focus, reduce procrastination, build mental clarity.")
+    "architect": (
+        learning_architect_agent,
+        "This agent will help you create a personalized study plan. "
+        "You might say: *'I’m preparing for the MCAT in 3 months. Build a study plan for me.'*"
+    ),
+    "memory": (
+        memory_recall_agent,
+        "This agent helps convert material into flashcards and set up spaced review. "
+        "Try something like: *'Convert my biology notes into flashcards and set up a review schedule.'*"
+    ),
+    "cognitive": (
+        cognitive_coach_agent,
+        "This agent boosts focus, reduces procrastination, and teaches metacognitive strategies. "
+        "Try: *'I keep getting distracted when I study. What can I do?'*"
+    )
 }
 
 # Agent selection
-agent_name = st.selectbox("Choose your agent:", list(agents.keys()))
-if st.session_state.agent is None:
-    st.session_state.agent = agents[agent_name][0]
-    st.markdown(f"**{agent_name}**: {agents[agent_name][1]}")
+agent_display_names = {
+    "architect": "Learning Architect",
+    "memory": "Memory & Recall",
+    "cognitive": "Cognitive Coach"
+}
+
+selected_key = st.selectbox("Choose your agent:", list(agent_display_names.keys()), format_func=lambda k: agent_display_names[k])
+
+# Reassign agent only if user changed selection or it's the first load
+if (
+    st.session_state.agent is None
+    or st.session_state.agent.name.lower().replace(" ", "_") not in selected_key
+):
+    st.session_state.agent = agents[selected_key][0]
+    st.session_state.agent_done = False
+    st.session_state.chat_history = []
+
+    st.markdown(f"### {agent_display_names[selected_key]}")
+    st.markdown(agents[selected_key][1])
 
 # Chat input
 user_input = st.chat_input("Type your message")
