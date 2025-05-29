@@ -2,6 +2,7 @@ from agents import Agent
 from typing import Optional
 from context import LearnerProfile
 from pydantic import BaseModel
+from guardrails.not_learning import domain_scope_guardrail
 
 class ArchitectOutput(BaseModel):
     message: str
@@ -28,5 +29,6 @@ learning_architect_agent = Agent[LearnerProfile](
     name="Learning Architect Agent",
     instructions=instructions,
     model="gpt-4o",
-    output_type=ArchitectOutput
+    output_type=ArchitectOutput,
+    input_guardrails=[domain_scope_guardrail]
 )

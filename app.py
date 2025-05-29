@@ -7,6 +7,7 @@ from ai_agents.architect import learning_architect_agent
 from ai_agents.memory import memory_recall_agent
 from ai_agents.cognitive import cognitive_coach_agent
 from agents import Runner
+from agents.exceptions import InputGuardrailTripwireTriggered
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -45,42 +46,48 @@ user_input = st.chat_input("Type your message")
 
 async def handle_message(user_input):
     full_input = st.session_state.chat_history + [{"role": "user", "content": user_input}]
-    result = await Runner.run(st.session_state.agent, input=full_input, context=st.session_state.profile)
-
-    st.session_state.chat_history = result.to_input_list()
-
-    # Update profile preferences if present
-    if hasattr(result.final_output, 'preferences') and result.final_output.preferences:
-        st.session_state.profile.preferences = result.final_output.preferences
-
-    # Display response
-    st.chat_message("assistant").markdown(result.final_output.message)
-
-    # Save output if done
-    if result.final_output.done and not st.session_state.agent_done:
-        st.session_state.agent_done = True
-        filename = os.path.join(
-            st.session_state.save_dir,
-            f"{st.session_state.agent.name.replace(' ', '_').lower()}.md"
+    try:
+        result = await Runner.run(
+            st.session_state.agent,
+            input=full_input,
+            context=st.session_state.profile
         )
-        with open(filename, "w", encoding="utf-8") as f:
-            f.write(f"# {st.session_state.agent.name}\n\n{result.final_output.message}")
 
-        st.success(f"✅ {st.session_state.agent.name} completed. Output saved to {filename}.")
+        st.session_state.chat_history = result.to_input_list()
 
-        # Automatic chaining logic
-        if st.session_state.agent == learning_architect_agent:
-            st.info("⏭ Now continuing with Memory & Recall Agent...")
-            st.session_state.agent = memory_recall_agent
-            st.session_state.agent_done = False
-            st.session_state.chat_history = []
+        if hasattr(result.final_output, 'preferences') and result.final_output.preferences:
+            st.session_state.profile.preferences = result.final_output.preferences
 
-        elif st.session_state.agent == memory_recall_agent:
-            if st.session_state.profile.preferences and any(word in st.session_state.profile.preferences.lower() for word in ["focus", "distract", "attention", "concentrate"]):
-                st.info("📌 Insight: You mentioned difficulty focusing. Launching Cognitive Coach Agent...")
-                st.session_state.agent = cognitive_coach_agent
+        st.chat_message("assistant").markdown(result.final_output.message)
+
+        if result.final_output.done and not st.session_state.agent_done:
+            st.session_state.agent_done = True
+            filename = os.path.join(
+                st.session_state.save_dir,
+                f"{st.session_state.agent.name.replace(' ', '_').lower()}.md"
+            )
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write(f"# {st.session_state.agent.name}\n\n{result.final_output.message}")
+
+            st.success(f"✅ {st.session_state.agent.name} completed. Output saved to {filename}.")
+
+            if st.session_state.agent == learning_architect_agent:
+                st.info("⏭ Now continuing with Memory & Recall Agent...")
+                st.session_state.agent = memory_recall_agent
                 st.session_state.agent_done = False
                 st.session_state.chat_history = []
+
+            elif st.session_state.agent == memory_recall_agent:
+                if st.session_state.profile.preferences and any(word in st.session_state.profile.preferences.lower() for word in ["focus", "distract", "attention", "concentrate"]):
+                    st.info("📌 Insight: You mentioned difficulty focusing. Launching Cognitive Coach Agent...")
+                    st.session_state.agent = cognitive_coach_agent
+                    st.session_state.agent_done = False
+                    st.session_state.chat_history = []
+
+    except InputGuardrailTripwireTriggered:
+        st.chat_message("assistant").markdown(
+            "⚠️ I can only assist with personalized learning plans and study goals. Try asking about how to learn better or structure your study time."
+        )
 
 if user_input:
     st.chat_message("user").markdown(user_input)
