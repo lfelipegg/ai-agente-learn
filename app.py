@@ -71,6 +71,16 @@ if (
 # Chat input
 user_input = st.chat_input("Type your message")
 
+def save_agent_output(agent, message):
+    filename = os.path.join(
+        st.session_state.save_dir,
+        f"{agent.name.replace(' ', '_').lower()}.md"
+    )
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(f"# {agent.name}\n\n{message}")
+    st.success(f"✅ {agent.name} completed. Output saved to {filename}.")
+
+
 async def handle_message(user_input):
     full_input = st.session_state.chat_history + [{"role": "user", "content": user_input}]
     try:
@@ -89,14 +99,7 @@ async def handle_message(user_input):
 
         if result.final_output.done and not st.session_state.agent_done:
             st.session_state.agent_done = True
-            filename = os.path.join(
-                st.session_state.save_dir,
-                f"{st.session_state.agent.name.replace(' ', '_').lower()}.md"
-            )
-            with open(filename, "w", encoding="utf-8") as f:
-                f.write(f"# {st.session_state.agent.name}\n\n{result.final_output.message}")
-
-            st.success(f"✅ {st.session_state.agent.name} completed. Output saved to {filename}.")
+            save_agent_output(st.session_state.agent, result.final_output.message)
 
             if st.session_state.agent == learning_architect_agent:
                 st.info("⏭ Now continuing with Memory & Recall Agent...")
